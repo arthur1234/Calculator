@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Calculator</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<div class="wrapper">
+		<div id="gui" class="gui">
+			<input type="text" id="values" class="values" value="0">
+			<div id="buttons" class="buttons">
+				<!-- 
+					here i generate all buttons
+					using method create() of
+					Module Calculator
+				 -->
+			</div>			
+		</div>
+		<div class="wrapHistory">
+			<button id="history" class="history">History</button>
+			<button id="clearHistory" class="clearHistory">Delete History</button>
+			<div id="showHistory" class="showHistory"></div>
+		</div>
+	</div>
+	<script type="text/javascript">
+		
+		var Calculator = (function(){
+			var buttons = [
+				"AC","ON", "OFF", 
+				"7", "8", "9",  "%", "\u221A",
+				"4", "5", "6",  "*",  "/",
+				"1", "2", "3",  "+",  "-",
+				"0", ".", "=",  "(",  ")"
+			];
+
+			var response = '';
+			var off      = false;
+
+			// show all buttons
+			this.create = function(){
+				for (var i = 0, btn, txt; i < buttons.length; i++) {
+					btn = document.createElement('button'); 
+					btn.id = 'btn_'+i;
+				
+					txt = document.createTextNode(buttons[i]);       
+					btn.appendChild(txt); 
+
+					btn.onclick =function() { click(this) };
+						
+					btn.className = 'btn';  
+					if(i == 0)   btn.className += ' btn1';                         
+					document.getElementById('buttons').appendChild(btn);    
+				};				
+			};
+
+			// buttons clicks listener
+			this.click = function(that){
+
+				// three first buttons: AC, ON, OFF
+				if(that.id == 'btn_0'){
+					document.getElementById('values').value = '0';
+					return;
+				}
+				else if(that.id == 'btn_1'){
+					off = false;
+					document.getElementById('values').readOnly = false;
+					document.getElementById('values').style.backgroundColor = '#fff';
+					document.getElementById('values').style.border = '1px solid #505050 ';
+				}
+				else if(that.id == 'btn_2'){
+					document.getElementById('values').value = '0';
+					document.getElementById('values').readOnly = true;
+					document.getElementById('values').style.backgroundColor = '#3399FF';
+					document.getElementById('values').style.border = '0px';
+					off = true;
+				}
+				if(off) return;
+
+				// set tag input with arithmetic string
+				if(that.id != 'btn_20' && that.id != 'btn_6' && that.id != 'btn_7' && that.id != 'btn_1') {
+
+					if(document.getElementById('values').value == "0"){
+						document.getElementById('values').value = that.innerHTML;
+					}
+					else {
+						document.getElementById('values').value += that.innerHTML;
+					} 				
+				}
+				else{
+					// buttons =, %, v send arithmetic string to server
+					switch(that.id){
+						case 'btn_20':
+								getResult(0);
+							break;
+						case 'btn_6':
+								getResult(1);
+							break;
+						case 'btn_7':
+								getResult(2);
+							break;
+						default:
+							break;
+					}
+				}
+
+
+			};
+
+			// AJAX and localStorage execute
+			this.getResult = function(operation)
+			{
+				var doneOperation = '';
+				// create query for method post of Ajax
+				var str           = 'arithmeticString='+document.getElementById('values').value;
+				str               = str.replaceAll("+", "k");
+
+				if(operation == 1){
+					str += '&percent=1';
+					doneOperation = '1% from ';
+				}
+				else if(operation == 2){
+					str += '&sqrt=1';
+					doneOperation = 'square root from ';
+				}
+
+				var storageStr = '';
+				var xmlhttp;
+				if (window.XMLHttpRequest)
+					xmlhttp = new XMLHttpRequest();
+
+				try{
+					// try ajax using clean javascript 
+					xmlhttp.onreadystatechange=function()
+					{
+					  	if (xmlhttp.readyState==4 && xmlhttp.status==200){
+					    	response = xmlhttp.responseText;
+					    	if(response.trim().length == 0){
+					    		alert('Illigal arithmetic query!');
+					    	}
+					    	else{
+					    		// SAVE HISTORY IN LOCAL STORAGE
+								if (typeof(Storage) != 'undefined') {
+								    if(localStorage.getItem('history') === null){
+								    	storageStr = doneOperation                           +
+								    				 document.getElementById('values').value +
+								    				 ' = '                                   +
+								    				 response + '<br><br>';
+								    }
+								    else{
+								    	storageStr = localStorage.getItem('history')         +
+								    				 doneOperation                           +
+								    				 document.getElementById('values').value +
+								    				 ' = '                                   +
+								    				response + '<br><br>';
+								    }
+
+								    localStorage.setItem("history", storageStr);
+								    // Retrieve :: localStorage.getItem("history");
+								} 
+								else {
+								    alert('Sorry, your browser does not support Web Storage...');
+								}	
+								// show result
+								document.getElementById('values').value = parseFloat(response);
+					    	}					    	
+					    }
+					};
+				}
+		        catch(e)
+		        {
+		            alert('Ajax error');  
+		        }
+				//  URL of ServerSideCode - http://localhost:8080/calculator/
+				xmlhttp.open("POST","http://localhost:8080/calculator/",true);
+				xmlhttp.setRequestHeader("Content-type","application/x-www-form-urlencoded");
+				xmlhttp.send(str);
+			};
+
+			return {
+				// only one public method of module Calculator
+				create  : create
+			}
+
+		})();
+
+		/* set by page onload  */
+		window.onload = function(){ 
+			Calculator.create();
+		};
+
+		// show history
+		document.getElementById('history').onclick = function(){
+			if (typeof(Storage) != "undefined") {
+				document.getElementById('showHistory').innerHTML = localStorage.getItem("history");
+			}
+		}
+
+		// delete history
+		document.getElementById('clearHistory').onclick = function(){
+			if (typeof(Storage) != 'undefined') {
+				localStorage.removeItem('history');
+				document.getElementById('showHistory').innerHTML = '';
+			}
+		}
+
+		//  replace all instances of a string/character in a string 
+		String.prototype.replaceAll = function(str1, str2, ignore) 
+		{
+		    return this.replace(new RegExp(str1.replace(/([\/\,\!\\\^\$\{\}\[\]\(\)\.\*\+\?\|\<\>\-\&])/g,"\\$&"),(ignore?"gi":"g")),(typeof(str2)=="string")?str2.replace(/\$/g,"$$$$"):str2);
+		}
+
+	</script>
+	
+</body>
+</html>
